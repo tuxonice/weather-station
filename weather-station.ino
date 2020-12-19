@@ -9,7 +9,7 @@ const char* mqtt_server = "10.10.1.1";
 #define MQTT_USER "user"
 #define MQTT_PASSWORD "password"
 #define MQTT_PUBLISH_TOPIC_WIND "/pixel/wind/sensor"
-#define INPUTPIN 15
+#define INPUTPIN 18
 #define SLICE_SIZE 30000
 
 volatile int count = 0;
@@ -24,7 +24,7 @@ portMUX_TYPE synch = portMUX_INITIALIZER_UNLOCKED;
 
 void IRAM_ATTR isr() {
   portENTER_CRITICAL(&synch);
-  if (millis() > lastEntry + 500) {
+  if (millis() > lastEntry + 350) {
     count++;
     lastEntry = millis();
   }
