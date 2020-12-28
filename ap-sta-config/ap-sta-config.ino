@@ -2,6 +2,15 @@
 #include <WebServer.h>
 #include <SPIFFS.h>
 #include <ArduinoJson.h>
+#include <PubSubClient.h>
+
+#define INPUTPIN 15
+#define SLICE_SIZE 30000
+
+volatile int count = 0;
+volatile unsigned long lastEntry;
+int slice = 0;
+// hw_timer_t * timer = NULL;
 
 /* Put your SSID */
 const char* ssid = "ESP32-PIXEL";  // Enter SSID here
@@ -26,8 +35,35 @@ struct Configuration {
 
 struct Configuration systemConfiguration;
 
+portMUX_TYPE synch = portMUX_INITIALIZER_UNLOCKED;
+portMUX_TYPE timerMux = portMUX_INITIALIZER_UNLOCKED;
+
+WiFiClient wifiClient;
+PubSubClient client(wifiClient);
+
 // Set web server port number to 80
 WebServer server(80);
+
+
+
+void IRAM_ATTR isr() {
+  portENTER_CRITICAL(&synch);
+  if (millis() > lastEntry + 500) {
+    count++;
+    lastEntry = millis();
+  }
+  portEXIT_CRITICAL(&synch);
+}
+
+/*
+void IRAM_ATTR onTimer() {
+  portENTER_CRITICAL_ISR(&timerMux);
+  endSlice = 1;
+  lastCount = count;
+  count=0;
+  portEXIT_CRITICAL_ISR(&timerMux);
+}
+*/ 
 
 void setup() {
   Serial.begin(115200);
@@ -54,6 +90,45 @@ void setup() {
   
   server.begin();
   Serial.println("HTTP server started");
+
+  pinMode(INPUTPIN, INPUT_PULLUP);
+  attachInterrupt(INPUTPIN, isr, RISING);
+  lastEntry = millis();
+  
+  // timer = timerBegin(0, 80, true);
+  // timerAttachInterrupt(timer, &onTimer, true);
+  // timerAlarmWrite(timer, 20000000, true);
+  // timerAlarmEnable(timer);
+
+  //-- MQTT --  
+  client.setServer(systemConfiguration.mqtt_server.c_str(), 1883);
+  reconnect();
+}
+
+bool reconnect() {
+  // Loop until we're reconnected
+  while (!client.connected()) {
+    Serial.print("Attempting MQTT connection...");
+    // Create a random client ID
+    String clientId = "ESP32Client-";
+    clientId += String(random(0xffff), HEX);
+    // Attempt to connect
+    if (!client.connect(clientId.c_str(),systemConfiguration.mqtt_user.c_str(),systemConfiguration.mqtt_passw.c_str())) {
+      Serial.println("failed, rc=" + client.state());
+      return false;
+    }
+  }
+  return true;
+}
+
+void publishSerialData(char * topic, char * serialData){
+  if (!client.connected()) {
+    if(!reconnect()) {
+      Serial.println("Message not sent");
+      return;
+    }
+  }
+  client.publish(topic, serialData);
 }
 
 bool wifiConnect(const char * ssid, const char * password)
@@ -69,6 +144,7 @@ bool wifiConnect(const char * ssid, const char * password)
         Serial.println("WiFi connected..!");
         Serial.print("Got IP: ");
         Serial.println(WiFi.localIP());
+        randomSeed(micros());
         return true;
       }
       delay(1000);
@@ -93,7 +169,19 @@ void apConnect()
 }
 
 void loop(){
+  char average[12];
   server.handleClient();
+  Serial.println(count);
+  if(millis() >= slice + SLICE_SIZE) {
+    //calc average
+    sprintf(average, "%.02f", (float)count/30.0);
+    portENTER_CRITICAL_ISR(&synch); // início da seção crítica
+    count = 0;  
+    portEXIT_CRITICAL_ISR(&synch); // fim da seção crítica
+    slice = millis();
+    Serial.println(average);
+    // publishSerialData(systemConfiguration.mqtt_topic_wind.c_str(), average);
+  }
   delay(1000);
 }
 
@@ -165,16 +253,17 @@ void readConfigFile() {
       return;
     }
 
-    systemConfiguration.wifi_ssid = doc["wifi_ssid"].as<String>();
-    systemConfiguration.wifi_passw = doc["wifi_passw"].as<String>();
-    systemConfiguration.mqtt_server = doc["mqtt_server"].as<String>();
-    systemConfiguration.mqtt_user = doc["mqtt_user"].as<String>();
-    systemConfiguration.mqtt_passw = doc["mqtt_passw"].as<String>();
-    systemConfiguration.mqtt_topic_wind = doc["mqtt_topic_wind"].as<String>();
-    systemConfiguration.mqtt_topic_laser = doc["mqtt_topic_laser"].as<String>();
-    systemConfiguration.thr_temp = doc["thr_temp"];
-    systemConfiguration.thr_hum = doc["thr_hum"];
-    systemConfiguration.thr_press = doc["thr_press"]; 
+    JsonObject obj = doc.as<JsonObject>();
+    systemConfiguration.wifi_ssid = obj["wifi_ssid"].as<String>();
+    systemConfiguration.wifi_passw = obj["wifi_passw"].as<String>();
+    systemConfiguration.mqtt_server = obj["mqtt_server"].as<String>();
+    systemConfiguration.mqtt_user = obj["mqtt_user"].as<String>();
+    systemConfiguration.mqtt_passw = obj["mqtt_passw"].as<String>();
+    systemConfiguration.mqtt_topic_wind = obj["mqtt_topic_wind"].as<String>();
+    systemConfiguration.mqtt_topic_laser = obj["mqtt_topic_laser"].as<String>();
+    systemConfiguration.thr_temp = obj["thr_temp"];
+    systemConfiguration.thr_hum = obj["thr_hum"];
+    systemConfiguration.thr_press = obj["thr_press"]; 
     
   file.close();  
   } else {
