@@ -3,6 +3,8 @@
 #include <SPIFFS.h>
 #include <ArduinoJson.h>
 #include <PubSubClient.h>
+#include <Wire.h>
+#include "SparkFunBME280.h"
 
 #define INPUT_PIN_WIND 15
 #define INPUT_PIN_LASER 18
@@ -13,6 +15,7 @@ volatile int laser = 0;
 volatile unsigned long lastEntryWind;
 volatile unsigned long lastEntryLaser;
 int slice = 0;
+bool weatherSensorIsActive = false;
 
 /* Put your SSID */
 const char* ssid = "ESP32-PIXEL";  // Enter SSID here
@@ -36,6 +39,7 @@ struct Configuration {
 };
 
 struct Configuration systemConfiguration;
+BME280 weatherSensor;
 
 portMUX_TYPE synch_wind = portMUX_INITIALIZER_UNLOCKED;
 portMUX_TYPE synch_laser = portMUX_INITIALIZER_UNLOCKED;
@@ -88,6 +92,15 @@ void setup() {
   
   server.begin();
   Serial.println("HTTP server started");
+
+  Wire.begin();
+  if (weatherSensor.beginI2C() == false) //Begin communication over I2C
+  {
+    Serial.println("The sensor did not respond. Please check wiring.");
+    weatherSensorIsActive = false;
+  } else {
+    weatherSensorIsActive = true;
+  }
 
   // -- INTERRUPT WIND --
   pinMode(INPUT_PIN_WIND, INPUT_PULLUP);
@@ -188,6 +201,22 @@ void loop(){
     laser = 0;
     portEXIT_CRITICAL_ISR(&synch_laser); // fim da seção crítica
   }
+  
+  if(weatherSensorIsActive == true) {
+    Serial.print("Humidity: ");
+    Serial.print(weatherSensor.readFloatHumidity(), 0);
+
+    Serial.print(" Pressure: ");
+    Serial.print(weatherSensor.readFloatPressure(), 0);
+
+    Serial.print(" Alt: ");
+    Serial.print(weatherSensor.readFloatAltitudeMeters(), 1);
+
+    Serial.print(" Temp: ");
+    Serial.print(weatherSensor.readTempC(), 2);
+  }
+  
+  
   delay(1000);
 }
 
