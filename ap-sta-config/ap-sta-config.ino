@@ -4,13 +4,15 @@
 #include <ArduinoJson.h>
 #include <PubSubClient.h>
 
-#define INPUTPIN 15
+#define INPUT_PIN_WIND 15
+#define INPUT_PIN_LASER 18
 #define SLICE_SIZE 30000
 
 volatile int count = 0;
-volatile unsigned long lastEntry;
+volatile int laser = 0;
+volatile unsigned long lastEntryWind;
+volatile unsigned long lastEntryLaser;
 int slice = 0;
-// hw_timer_t * timer = NULL;
 
 /* Put your SSID */
 const char* ssid = "ESP32-PIXEL";  // Enter SSID here
@@ -35,8 +37,8 @@ struct Configuration {
 
 struct Configuration systemConfiguration;
 
-portMUX_TYPE synch = portMUX_INITIALIZER_UNLOCKED;
-portMUX_TYPE timerMux = portMUX_INITIALIZER_UNLOCKED;
+portMUX_TYPE synch_wind = portMUX_INITIALIZER_UNLOCKED;
+portMUX_TYPE synch_laser = portMUX_INITIALIZER_UNLOCKED;
 
 WiFiClient wifiClient;
 PubSubClient client(wifiClient);
@@ -44,26 +46,24 @@ PubSubClient client(wifiClient);
 // Set web server port number to 80
 WebServer server(80);
 
-
-
-void IRAM_ATTR isr() {
-  portENTER_CRITICAL(&synch);
-  if (millis() > lastEntry + 500) {
+void IRAM_ATTR wind_isr() {
+  portENTER_CRITICAL(&synch_wind);
+  if (millis() > lastEntryWind + 500) {
     count++;
-    lastEntry = millis();
+    lastEntryWind = millis();
   }
-  portEXIT_CRITICAL(&synch);
+  portEXIT_CRITICAL(&synch_wind);
 }
 
-/*
-void IRAM_ATTR onTimer() {
-  portENTER_CRITICAL_ISR(&timerMux);
-  endSlice = 1;
-  lastCount = count;
-  count=0;
-  portEXIT_CRITICAL_ISR(&timerMux);
+void IRAM_ATTR laser_isr() {
+  portENTER_CRITICAL(&synch_laser);
+  if (millis() > lastEntryLaser + 500) {
+    laser = 1;
+    lastEntryLaser = millis();
+  }
+  portEXIT_CRITICAL(&synch_laser);
 }
-*/ 
+
 
 void setup() {
   Serial.begin(115200);
@@ -76,9 +76,7 @@ void setup() {
   readConfigFile();
   // 2. Check if config has valid SSID and PSW
   if(systemConfiguration.wifi_ssid != "" && systemConfiguration.wifi_passw != "" ) {
-      const char* ssid = systemConfiguration.wifi_ssid.c_str();
-      const char* password = systemConfiguration.wifi_passw.c_str();
-      if(!wifiConnect(ssid, password)) {
+      if(!wifiConnect(systemConfiguration.wifi_ssid.c_str(), systemConfiguration.wifi_passw.c_str())) {
         apConnect();
       }
   } else {
@@ -91,14 +89,15 @@ void setup() {
   server.begin();
   Serial.println("HTTP server started");
 
-  pinMode(INPUTPIN, INPUT_PULLUP);
-  attachInterrupt(INPUTPIN, isr, RISING);
-  lastEntry = millis();
-  
-  // timer = timerBegin(0, 80, true);
-  // timerAttachInterrupt(timer, &onTimer, true);
-  // timerAlarmWrite(timer, 20000000, true);
-  // timerAlarmEnable(timer);
+  // -- INTERRUPT WIND --
+  pinMode(INPUT_PIN_WIND, INPUT_PULLUP);
+  attachInterrupt(INPUT_PIN_WIND, wind_isr, RISING);
+  lastEntryWind = millis();
+
+  // -- INTERRUPT LASER --
+  pinMode(INPUT_PIN_LASER, INPUT_PULLUP);
+  attachInterrupt(INPUT_PIN_LASER, laser_isr, RISING);
+  lastEntryLaser = millis();
 
   //-- MQTT --  
   client.setServer(systemConfiguration.mqtt_server.c_str(), 1883);
@@ -175,12 +174,19 @@ void loop(){
   if(millis() >= slice + SLICE_SIZE) {
     //calc average
     sprintf(average, "%.02f", (float)count/30.0);
-    portENTER_CRITICAL_ISR(&synch); // início da seção crítica
+    portENTER_CRITICAL_ISR(&synch_wind); // início da seção crítica
     count = 0;  
-    portEXIT_CRITICAL_ISR(&synch); // fim da seção crítica
+    portEXIT_CRITICAL_ISR(&synch_wind); // fim da seção crítica
     slice = millis();
     Serial.println(average);
-    // publishSerialData(systemConfiguration.mqtt_topic_wind.c_str(), average);
+    publishSerialData(const_cast<char*>(systemConfiguration.mqtt_topic_wind.c_str()), average);
+  }
+
+  if(laser == 1) {
+    publishSerialData(const_cast<char*>(systemConfiguration.mqtt_topic_laser.c_str()), "ON");
+    portENTER_CRITICAL_ISR(&synch_laser); // início da seção crítica
+    laser = 0;
+    portEXIT_CRITICAL_ISR(&synch_laser); // fim da seção crítica
   }
   delay(1000);
 }
