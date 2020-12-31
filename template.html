@@ -17,7 +17,7 @@ body {
     background-color: #f8f9fa;
     
 }
-input[type=text], input[type=password], select {
+input[type=text], input[type=number], input[type=password], select {
   width: 100%;
   padding: 12px 20px;
   margin: 8px 0;
@@ -104,6 +104,9 @@ footer {
       <label for="mqtt-server">Server</label>
       <input type="text" id="mqtt-server" name="mqtt-server" required>
 
+      <label for="mqtt-port">Port</label>
+      <input type="text" id="mqtt-port" name="mqtt-port" required>
+
       <label for="mqtt-user">Username</label>
       <input type="text" id="mqtt-user" name="mqtt-user" required>
 
@@ -123,26 +126,11 @@ footer {
       <h2>Threshold</h2>
       
       <label for="threshold-temperature">Temperature</label>
-        <select id="threshold-temperature" name="threshold-temperature">
-        <option value="1">1</option>
-        <option value="1.5">1.5</option>
-        <option value="2">2</option>
-      </select>
-      
+        <input type="number" id="threshold-temperature" name="threshold-temperature" />
       <label for="threshold-humidity">Humidity</label>
-        <select id="threshold-humidity" name="threshold-humidity">
-        <option value="1">1</option>
-        <option value="3">3</option>
-        <option value="5">5</option>
-      </select>
-      
+        <input type="number" id="threshold-humidity" name="threshold-humidity" />
       <label for="threshold-pressure">Pressure</label>
-        <select id="threshold-pressure" name="threshold-pressure">
-        <option value="10">10</option>
-        <option value="20">20</option>
-        <option value="30">30</option>
-      </select>
-
+        <input type="number" id="threshold-pressure" name="threshold-pressure" />
       <input type="submit" value="Save">
     </form>
     <footer>

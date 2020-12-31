@@ -9,13 +9,16 @@
 #define INPUT_PIN_WIND 15
 #define INPUT_PIN_LASER 18
 #define SLICE_SIZE 30000
+#define BME280_TIME_UPDATE 60
 
 volatile int count = 0;
-volatile int laser = 0;
+volatile bool laser = false;
 volatile unsigned long lastEntryWind;
 volatile unsigned long lastEntryLaser;
 int slice = 0;
+unsigned long lastEntryBME280;
 bool weatherSensorIsActive = false;
+bool wifiSTAMode = false;
 
 /* Put your SSID */
 const char* ssid = "ESP32-PIXEL";  // Enter SSID here
@@ -29,6 +32,7 @@ struct Configuration {
    String wifi_ssid = "";
    String wifi_passw = "";
    String mqtt_server = "";
+   String mqtt_port = "1883";
    String mqtt_user = "";
    String mqtt_passw = "";
    String mqtt_topic_wind = "";
@@ -62,7 +66,7 @@ void IRAM_ATTR wind_isr() {
 void IRAM_ATTR laser_isr() {
   portENTER_CRITICAL(&synch_laser);
   if (millis() > lastEntryLaser + 500) {
-    laser = 1;
+    laser = true;
     lastEntryLaser = millis();
   }
   portEXIT_CRITICAL(&synch_laser);
@@ -113,8 +117,10 @@ void setup() {
   lastEntryLaser = millis();
 
   //-- MQTT --  
-  client.setServer(systemConfiguration.mqtt_server.c_str(), 1883);
+  client.setServer(systemConfiguration.mqtt_server.c_str(), systemConfiguration.mqtt_port.toInt());
   reconnect();
+  
+  lastEntryBME280 = millis();
 }
 
 bool reconnect() {
@@ -133,14 +139,12 @@ bool reconnect() {
   return true;
 }
 
-void publishSerialData(char * topic, char * serialData){
-  if (!client.connected()) {
-    if(!reconnect()) {
-      Serial.println("Message not sent");
-      return;
-    }
+bool publishSerialData(char * topic, char * serialData){
+  if (!client.connected() && !reconnect()) {
+      return false;
   }
   client.publish(topic, serialData);
+  return true;
 }
 
 bool wifiConnect(const char * ssid, const char * password)
@@ -157,6 +161,7 @@ bool wifiConnect(const char * ssid, const char * password)
         Serial.print("Got IP: ");
         Serial.println(WiFi.localIP());
         randomSeed(micros());
+        wifiSTAMode = true;
         return true;
       }
       delay(1000);
@@ -184,6 +189,10 @@ void loop(){
   char average[12];
   server.handleClient();
   Serial.println(count);
+  if(wifiSTAMode == false) {
+      delay(1000);
+      return;
+  }
   if(millis() >= slice + SLICE_SIZE) {
     //calc average
     sprintf(average, "%.02f", (float)count/30.0);
@@ -195,14 +204,14 @@ void loop(){
     publishSerialData(const_cast<char*>(systemConfiguration.mqtt_topic_wind.c_str()), average);
   }
 
-  if(laser == 1) {
+  if(laser == true) {
     publishSerialData(const_cast<char*>(systemConfiguration.mqtt_topic_laser.c_str()), "ON");
     portENTER_CRITICAL_ISR(&synch_laser); // início da seção crítica
-    laser = 0;
+    laser = false;
     portEXIT_CRITICAL_ISR(&synch_laser); // fim da seção crítica
   }
   
-  if(weatherSensorIsActive == true) {
+  if(weatherSensorIsActive == true && millis() >= lastEntryBME280 + BME280_TIME_UPDATE) {
     Serial.print("Humidity: ");
     Serial.print(weatherSensor.readFloatHumidity(), 0);
 
@@ -214,6 +223,9 @@ void loop(){
 
     Serial.print(" Temp: ");
     Serial.print(weatherSensor.readTempC(), 2);
+    // TODO: send values to MQTT broker
+    
+    lastEntryBME280 = millis();
   }
   
   
@@ -240,6 +252,10 @@ void handle_Update(){
   
   if (server.hasArg("mqtt-server")) {
       systemConfiguration.mqtt_server = server.arg("mqtt-server");
+  }
+  
+  if (server.hasArg("mqtt-port")) {
+      systemConfiguration.mqtt_port = server.arg("mqtt-port");
   }
   
   if (server.hasArg("mqtt-user")) {
@@ -292,6 +308,7 @@ void readConfigFile() {
     systemConfiguration.wifi_ssid = obj["wifi_ssid"].as<String>();
     systemConfiguration.wifi_passw = obj["wifi_passw"].as<String>();
     systemConfiguration.mqtt_server = obj["mqtt_server"].as<String>();
+    systemConfiguration.mqtt_port = obj["mqtt_port"].as<String>();
     systemConfiguration.mqtt_user = obj["mqtt_user"].as<String>();
     systemConfiguration.mqtt_passw = obj["mqtt_passw"].as<String>();
     systemConfiguration.mqtt_topic_wind = obj["mqtt_topic_wind"].as<String>();
@@ -313,6 +330,7 @@ void writeConfigFile(const char* filename) {
     doc["wifi_ssid"] = systemConfiguration.wifi_ssid;
     doc["wifi_passw"] = systemConfiguration.wifi_passw;
     doc["mqtt_server"] = systemConfiguration.mqtt_server;
+    doc["mqtt_port"] = systemConfiguration.mqtt_port;
     doc["mqtt_user"] = systemConfiguration.mqtt_user;
     doc["mqtt_passw"] = systemConfiguration.mqtt_passw;
     doc["mqtt_topic_wind"] = systemConfiguration.mqtt_topic_wind;
@@ -336,10 +354,10 @@ String SendHTML(){
   ptr +="<head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1, shrink-to-fit=no\">\n";
   ptr +="<title>Weather Station | Pixel</title>\n";
   ptr +="<style>\n";
-  ptr +="body{margin:0;font-family:Roboto,\"Helvetica Neue\",Arial,\"Noto Sans\",sans-serif;font-size:1rem;font-weight:400;line-height:1.5;color:#212529;text-align:left;background-color:#f8f9fa}input[type=password],input[type=text],select{width:100%;padding:12px 20px;margin:8px 0;display:inline-block;border:1px solid #ccc;border-radius:4px;box-sizing:border-box}input[type=submit]{width:100%;background-color:#4caf50;color:#fff;padding:14px 20px;margin:8px 0;border:none;border-radius:4px;cursor:pointer;font-size:1.2rem}.section-header{text-align:center;padding-top:1.5rem;padding-bottom:1.5rem}.container{max-width:960px;width:100%;padding-right:15px;padding-left:15px;margin-right:auto;margin-left:auto}h2{font-size:1.5rem;margin-top:0;margin-bottom:1rem;font-weight:500;line-height:1.2}hr{margin-top:1rem;margin-bottom:1rem;border:0;border-top:1px solid rgba(0,0,0,.1)}input[type=submit]:hover{background-color:#45a049}footer{color:#6c757d;text-align:center;padding-top:1rem;margin-bottom:1rem;margin-top:1.5rem}\n";
+  ptr +="body{margin:0;font-family:Roboto,\"Helvetica Neue\",Arial,\"Noto Sans\",sans-serif;font-size:1rem;font-weight:400;line-height:1.5;color:#212529;text-align:left;background-color:#f8f9fa}input[type=number],input[type=password],input[type=text],select{width:100%;padding:12px 20px;margin:8px 0;display:inline-block;border:1px solid #ccc;border-radius:4px;box-sizing:border-box}input[type=submit]{width:100%;background-color:#4caf50;color:#fff;padding:14px 20px;margin:8px 0;border:none;border-radius:4px;cursor:pointer;font-size:1.2rem}.section-header{text-align:center;padding-top:1.5rem;padding-bottom:1.5rem}.container{max-width:960px;width:100%;padding-right:15px;padding-left:15px;margin-right:auto;margin-left:auto}h2{font-size:1.5rem;margin-top:0;margin-bottom:1rem;font-weight:500;line-height:1.2}hr{margin-top:1rem;margin-bottom:1rem;border:0;border-top:1px solid rgba(0,0,0,.1)}input[type=submit]:hover{background-color:#45a049}footer{color:#6c757d;text-align:center;padding-top:1rem;margin-bottom:1rem;margin-top:1.5rem}\n";
   ptr +="</style>\n";
   ptr +="</head>\n";
-  ptr +="<body><div class=\"container\"><div class=\"section-header\"><h1>Pixel Weather Station 3</h1></div><form action=\"/\" method=\"POST\"><h2>Wifi</h2> <label for=\"wifi-ssid\">SSID</label> <input type=\"text\" id=\"wifi-ssid\" name=\"wifi-ssid\" value=\"" + systemConfiguration.wifi_ssid + "\" required><label for=\"wifi-password\">Password</label> <input type=\"password\" id=\"wifi-password\" name=\"wifi-password\" value=\"" + systemConfiguration.wifi_passw + "\" required><hr/><h2>MQTT</h2> <label for=\"mqtt-server\">Server</label> <input type=\"text\" id=\"mqtt-server\" name=\"mqtt-server\" value=\"" + systemConfiguration.mqtt_server + "\" required><label for=\"mqtt-user\">Username</label> <input type=\"text\" id=\"mqtt-user\" name=\"mqtt-user\" value=\"" + systemConfiguration.mqtt_user + "\" required><label for=\"mqtt-password\">Password</label> <input type=\"password\" id=\"mqtt-password\" name=\"mqtt-password\" value=\"" + systemConfiguration.mqtt_passw + "\" required><hr/><h2>MQTT Topics</h2> <label for=\"mqtt-topic-wind\">Wind</label> <input type=\"text\" id=\"mqtt-topic-wind\" name=\"mqtt-topic-wind\" value=\"" + systemConfiguration.mqtt_topic_wind + "\" required> <label for=\"mqtt-topic-laser\">laser</label> <input type=\"text\" id=\"mqtt-topic-laser\" name=\"mqtt-topic-laser\" value=\"" + systemConfiguration.mqtt_topic_laser + "\" required><hr/><h2>Threshold</h2> <label for=\"threshold-temperature\">Temperature</label> <select id=\"threshold-temperature\" name=\"threshold-temperature\"><option value=\"1\">1</option><option value=\"1.5\">1.5</option><option value=\"2\">2</option> </select> <label for=\"threshold-humidity\">Humidity</label> <select id=\"threshold-humidity\" name=\"threshold-humidity\"><option value=\"1\">1</option><option value=\"3\">3</option><option value=\"5\">5</option> </select> <label for=\"threshold-pressure\">Pressure</label> <select id=\"threshold-pressure\" name=\"threshold-pressure\"><option value=\"10\">10</option><option value=\"20\">20</option><option value=\"30\">30</option> </select><input type=\"submit\" value=\"Save\"></form> <footer><p>&copy; 2020 TLab</p> </footer></div></body>\n";
+  ptr +="<body><div class=\"container\"><div class=\"section-header\"><h1>Pixel Weather Station</h1></div><form action=\"#\" method=\"POST\"><h2>Wifi</h2> <label for=\"wifi-ssid\">SSID</label> <input type=\"text\" id=\"wifi-ssid\" name=\"wifi-ssid\" required><label for=\"wifi-password\">Password</label> <input type=\"password\" id=\"wifi-password\" name=\"wifi-password\" required><hr/><h2>MQTT</h2> <label for=\"mqtt-server\">Server</label> <input type=\"text\" id=\"mqtt-server\" name=\"mqtt-server\" required><label for=\"mqtt-port\">Port</label> <input type=\"text\" id=\"mqtt-port\" name=\"mqtt-port\" required><label for=\"mqtt-user\">Username</label> <input type=\"text\" id=\"mqtt-user\" name=\"mqtt-user\" required><label for=\"mqtt-password\">Password</label> <input type=\"password\" id=\"mqtt-password\" name=\"mqtt-password\" required><hr/><h2>MQTT Topics</h2> <label for=\"mqtt-topic-wind\">Wind</label> <input type=\"text\" id=\"mqtt-topic-wind\" name=\"mqtt-topic-wind\" required> <label for=\"mqtt-topic-laser\">laser</label> <input type=\"text\" id=\"mqtt-topic-laser\" name=\"mqtt-topic-laser\" required><hr/><h2>Threshold</h2> <label for=\"threshold-temperature\">Temperature</label> <input type=\"number\" id=\"threshold-temperature\" name=\"threshold-temperature\" /> <label for=\"threshold-humidity\">Humidity</label> <input type=\"number\" id=\"threshold-humidity\" name=\"threshold-humidity\" /> <label for=\"threshold-pressure\">Pressure</label> <input type=\"number\" id=\"threshold-pressure\" name=\"threshold-pressure\" /> <input type=\"submit\" value=\"Save\"></form> <footer><p>&copy; 2020 TLab</p> </footer></div></body>\n";
   ptr +="</html>\n";
   return ptr;
 }
