@@ -37,6 +37,9 @@ struct Configuration {
    String mqtt_passw = "";
    String mqtt_topic_wind = "";
    String mqtt_topic_laser = "";
+   String mqtt_topic_temp = "";
+   String mqtt_topic_hum = "";
+   String mqtt_topic_press = "";
    float thr_temp = 0;
    float thr_hum = 0;
    float thr_press = 0;
@@ -241,17 +244,17 @@ void loop(){
     Serial.print(weatherSensor.readFloatAltitudeMeters(), 1);
 
     if(abs(lastHumidity - currentHumidity) >= systemConfiguration.thr_hum) {
-        publishSerialData("/pixel/humidity", humidity);
+        publishSerialData(const_cast<char*>(systemConfiguration.mqtt_topic_hum.c_str()), humidity);
         lastHumidity = currentHumidity;
     }
     
     if(abs(lastPressure - currentPressure) >= systemConfiguration.thr_press) {
-        publishSerialData("/pixel/pressure", pressure);
+        publishSerialData(const_cast<char*>(systemConfiguration.mqtt_topic_press.c_str()), pressure);
         lastPressure = currentPressure;
     }
     
     if(abs(lastTemperature - currentTemperature) >= systemConfiguration.thr_temp) {
-        publishSerialData("/pixel/temperature", temperature);
+        publishSerialData(const_cast<char*>(systemConfiguration.mqtt_topic_temp.c_str()), temperature);
         lastTemperature = currentTemperature;
     }
     
@@ -304,16 +307,28 @@ void handle_Update(){
       systemConfiguration.mqtt_topic_laser = server.arg("mqtt-topic-laser");
   }
   
-  if (server.hasArg("threshold-temperature")) {
-      systemConfiguration.thr_temp = server.arg("threshold-temperature").toFloat();
+  if (server.hasArg("mqtt-topic-hum")) {
+      systemConfiguration.mqtt_topic_hum = server.arg("mqtt-topic-hum");
   }
   
-  if (server.hasArg("threshold-humidity")) {
-      systemConfiguration.thr_hum = server.arg("threshold-humidity").toFloat();
+  if (server.hasArg("mqtt-topic-temp")) {
+      systemConfiguration.mqtt_topic_temp = server.arg("mqtt-topic-temp");
   }
   
-  if (server.hasArg("threshold-pressure")) {
-      systemConfiguration.thr_press = server.arg("threshold-pressure").toFloat();
+  if (server.hasArg("mqtt-topic-press")) {
+      systemConfiguration.mqtt_topic_press = server.arg("mqtt-topic-press");
+  }
+  
+  if (server.hasArg("thr-temp")) {
+      systemConfiguration.thr_temp = server.arg("thr-temp").toFloat();
+  }
+  
+  if (server.hasArg("thr-hum")) {
+      systemConfiguration.thr_hum = server.arg("thr-hum").toFloat();
+  }
+  
+  if (server.hasArg("thr-press")) {
+      systemConfiguration.thr_press = server.arg("thr-press").toFloat();
   }
 
   writeConfigFile("/config.json");
@@ -343,6 +358,9 @@ void readConfigFile() {
     systemConfiguration.mqtt_passw = obj["mqtt_passw"].as<String>();
     systemConfiguration.mqtt_topic_wind = obj["mqtt_topic_wind"].as<String>();
     systemConfiguration.mqtt_topic_laser = obj["mqtt_topic_laser"].as<String>();
+    systemConfiguration.mqtt_topic_hum = obj["mqtt_topic_hum"].as<String>();
+    systemConfiguration.mqtt_topic_temp = obj["mqtt_topic_temp"].as<String>();
+    systemConfiguration.mqtt_topic_press = obj["mqtt_topic_press"].as<String>();
     systemConfiguration.thr_temp = obj["thr_temp"];
     systemConfiguration.thr_hum = obj["thr_hum"];
     systemConfiguration.thr_press = obj["thr_press"]; 
@@ -365,6 +383,9 @@ void writeConfigFile(const char* filename) {
     doc["mqtt_passw"] = systemConfiguration.mqtt_passw;
     doc["mqtt_topic_wind"] = systemConfiguration.mqtt_topic_wind;
     doc["mqtt_topic_laser"] = systemConfiguration.mqtt_topic_laser;
+    doc["mqtt_topic_hum"] = systemConfiguration.mqtt_topic_hum;
+    doc["mqtt_topic_press"] = systemConfiguration.mqtt_topic_press;
+    doc["mqtt_topic_temp"] = systemConfiguration.mqtt_topic_temp;
     doc["thr_temp"] = systemConfiguration.thr_temp;
     doc["thr_hum"] = systemConfiguration.thr_hum;
     doc["thr_press"] = systemConfiguration.thr_press;
@@ -387,7 +408,7 @@ String SendHTML(){
   ptr +="body{margin:0;font-family:Roboto,\"Helvetica Neue\",Arial,\"Noto Sans\",sans-serif;font-size:1rem;font-weight:400;line-height:1.5;color:#212529;text-align:left;background-color:#f8f9fa}input[type=number],input[type=password],input[type=text],select{width:100%;padding:12px 20px;margin:8px 0;display:inline-block;border:1px solid #ccc;border-radius:4px;box-sizing:border-box}input[type=submit]{width:100%;background-color:#4caf50;color:#fff;padding:14px 20px;margin:8px 0;border:none;border-radius:4px;cursor:pointer;font-size:1.2rem}.section-header{text-align:center;padding-top:1.5rem;padding-bottom:1.5rem}.container{max-width:960px;width:100%;padding-right:15px;padding-left:15px;margin-right:auto;margin-left:auto}h2{font-size:1.5rem;margin-top:0;margin-bottom:1rem;font-weight:500;line-height:1.2}hr{margin-top:1rem;margin-bottom:1rem;border:0;border-top:1px solid rgba(0,0,0,.1)}input[type=submit]:hover{background-color:#45a049}footer{color:#6c757d;text-align:center;padding-top:1rem;margin-bottom:1rem;margin-top:1.5rem}\n";
   ptr +="</style>\n";
   ptr +="</head>\n";
-  ptr +="<body><div class=\"container\"><div class=\"section-header\"><h1>Pixel Weather Station</h1></div><form action=\"#\" method=\"POST\"><h2>Wifi</h2> <label for=\"wifi-ssid\">SSID</label> <input type=\"text\" id=\"wifi-ssid\" name=\"wifi-ssid\" required><label for=\"wifi-password\">Password</label> <input type=\"password\" id=\"wifi-password\" name=\"wifi-password\" required><hr/><h2>MQTT</h2> <label for=\"mqtt-server\">Server</label> <input type=\"text\" id=\"mqtt-server\" name=\"mqtt-server\" required><label for=\"mqtt-port\">Port</label> <input type=\"text\" id=\"mqtt-port\" name=\"mqtt-port\" required><label for=\"mqtt-user\">Username</label> <input type=\"text\" id=\"mqtt-user\" name=\"mqtt-user\" required><label for=\"mqtt-password\">Password</label> <input type=\"password\" id=\"mqtt-password\" name=\"mqtt-password\" required><hr/><h2>MQTT Topics</h2> <label for=\"mqtt-topic-wind\">Wind</label> <input type=\"text\" id=\"mqtt-topic-wind\" name=\"mqtt-topic-wind\" required> <label for=\"mqtt-topic-laser\">laser</label> <input type=\"text\" id=\"mqtt-topic-laser\" name=\"mqtt-topic-laser\" required><hr/><h2>Threshold</h2> <label for=\"threshold-temperature\">Temperature</label> <input type=\"number\" id=\"threshold-temperature\" name=\"threshold-temperature\" /> <label for=\"threshold-humidity\">Humidity</label> <input type=\"number\" id=\"threshold-humidity\" name=\"threshold-humidity\" /> <label for=\"threshold-pressure\">Pressure</label> <input type=\"number\" id=\"threshold-pressure\" name=\"threshold-pressure\" /> <input type=\"submit\" value=\"Save\"></form> <footer><p>&copy; 2020 TLab</p> </footer></div></body>\n";
+  ptr +="<body><div class=\"container\"><div class=\"section-header\"><h1>Pixel Weather Station</h1></div><form action=\"/\" method=\"POST\"><h2>Wifi</h2> <label for=\"wifi-ssid\">SSID</label> <input type=\"text\" id=\"wifi-ssid\" name=\"wifi-ssid\" value=\"" + systemConfiguration.wifi_ssid + "\" required /><label for=\"wifi-password\">Password</label> <input type=\"password\" id=\"wifi-password\" name=\"wifi-password\" value=\"" + systemConfiguration.wifi_passw + "\" required /><hr/><h2>MQTT</h2> <label for=\"mqtt-server\">Server</label> <input type=\"text\" id=\"mqtt-server\" name=\"mqtt-server\" value=\"" + systemConfiguration.mqtt_server + "\" required /><label for=\"mqtt-port\">Port</label> <input type=\"text\" id=\"mqtt-port\" name=\"mqtt-port\" value=\"" + systemConfiguration.mqtt_port + "\" required /><label for=\"mqtt-user\">Username</label> <input type=\"text\" id=\"mqtt-user\" name=\"mqtt-user\" value=\"" + systemConfiguration.mqtt_user + "\" required /><label for=\"mqtt-password\">Password</label> <input type=\"password\" id=\"mqtt-password\" name=\"mqtt-password\" value=\"" + systemConfiguration.mqtt_passw + "\" required /><hr/><h2>MQTT Topics</h2> <label for=\"mqtt-topic-wind\">Wind</label> <input type=\"text\" id=\"mqtt-topic-wind\" name=\"mqtt-topic-wind\" value=\"" + systemConfiguration.mqtt_topic_wind + "\" required /> <label for=\"mqtt-topic-laser\">laser</label> <input type=\"text\" id=\"mqtt-topic-laser\" name=\"mqtt-topic-laser\" value=\"" + systemConfiguration.mqtt_topic_laser + "\" required /> <label for=\"mqtt-topic-temp\">temperature</label> <input type=\"text\" id=\"mqtt-topic-temp\" name=\"mqtt-topic-temp\" value=\"" + systemConfiguration.mqtt_topic_temp + "\" required /> <label for=\"mqtt-topic-hum\">Humidity</label> <input type=\"text\" id=\"mqtt-topic-hum\" name=\"mqtt-topic-hum\" value=\"" + systemConfiguration.mqtt_topic_hum + "\" required /> <label for=\"mqtt-topic-press\">Pressure</label> <input type=\"text\" id=\"mqtt-topic-press\" name=\"mqtt-topic-press\" value=\"" + systemConfiguration.mqtt_topic_press + "\" required /><hr/><h2>Configuration</h2> <label for=\"thr-temp\">Temperature Threshold</label> <input type=\"number\" id=\"thr-temp\" name=\"thr-temp\" value=\"" + systemConfiguration.thr_temp + "\" required /> <label for=\"thr-hum\">Humidity Threshold</label> <input type=\"number\" id=\"thr-hum\" name=\"thr-hum\" value=\"" + systemConfiguration.thr_hum + "\" required /> <label for=\"thr-pressure\">Pressure Threshold</label> <input type=\"number\" id=\"thr-press\" name=\"thr-press\" value=\"" + systemConfiguration.thr_press + "\" required /> <input type=\"submit\" value=\"Save\"></form> <footer><p>&copy; 2020 TLab</p> </footer></div></body>\n";
   ptr +="</html>\n";
   return ptr;
 }
