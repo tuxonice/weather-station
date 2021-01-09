@@ -8,8 +8,11 @@
 
 #define INPUT_PIN_WIND 15
 #define INPUT_PIN_LASER 18
-#define SLICE_SIZE 30000
-#define BME280_TIME_UPDATE 60000
+#define STATUS_LED  2
+#define WIFI_CONNECTING_BLINK_COUNT 2
+#define MQTT_ERROR_BLINK_COUNT 3
+#define BME280_ERROR_BLINK_COUNT 6
+#define SPIFFS_ERROR_BLINK_COUNT 8
 
 volatile int count = 0;
 volatile bool laser = false;
@@ -43,6 +46,8 @@ struct Configuration {
    float thr_temp = 0;
    float thr_hum = 0;
    float thr_press = 0;
+   int slice_time = 30000;
+   int time_update = 60000;
 };
 
 struct Configuration systemConfiguration;
@@ -75,12 +80,37 @@ void IRAM_ATTR laser_isr() {
   portEXIT_CRITICAL(&synch_laser);
 }
 
+void statusToBlink(int status, int times = 1)
+{
+  while (--times >= 0) {
+    for(int i = 1; i<=status; i++) {
+      digitalWrite(STATUS_LED, HIGH);
+      delay(400);
+      digitalWrite(STATUS_LED, LOW);
+      delay(200);  
+    }
+    delay(2000);
+  }
+}
+
+void iddleToBlink(int count)
+{
+    for(int i = 1; i<=count; i++) {
+      digitalWrite(STATUS_LED, HIGH);
+      delay(1000);
+      digitalWrite(STATUS_LED, LOW);
+      delay(1000);  
+    }
+}
 
 void setup() {
   Serial.begin(115200);
+  pinMode(STATUS_LED, OUTPUT);
   if(!SPIFFS.begin(true)) {
     Serial.println("Error initializing SPIFFS");
-    while(true){}
+    while(true){
+        statusToBlink(SPIFFS_ERROR_BLINK_COUNT);
+    }
   }
   // 1. Read config file
   Serial.println("Reading configuration file");
@@ -206,7 +236,7 @@ void loop(){
       delay(1000);
       return;
   }
-  if(millis() >= slice + SLICE_SIZE) {
+  if(millis() >= slice + systemConfiguration.slice_time) {
     //calc average
     sprintf(average, "%.02f", (float)count/30.0);
     portENTER_CRITICAL_ISR(&synch_wind); // início da seção crítica
@@ -224,7 +254,7 @@ void loop(){
     portEXIT_CRITICAL_ISR(&synch_laser); // fim da seção crítica
   }
   
-  if(weatherSensorIsActive == true && millis() >= lastEntryBME280 + BME280_TIME_UPDATE) {
+  if(weatherSensorIsActive == true && millis() >= lastEntryBME280 + systemConfiguration.time_update) {
 
     currentPressure = weatherSensor.readFloatPressure();
     currentTemperature = weatherSensor.readTempC();
@@ -262,7 +292,7 @@ void loop(){
   }
   
   
-  delay(1000);
+  iddleToBlink(1)
 }
 
 void handle_OnConnect() {
@@ -330,23 +360,30 @@ void handle_Update(){
   if (server.hasArg("thr-press")) {
       systemConfiguration.thr_press = server.arg("thr-press").toFloat();
   }
+  
+  if (server.hasArg("slice-time")) {
+      systemConfiguration.slice_time = server.arg("slice-time").toInt();
+  }
+  
+  if (server.hasArg("time-update")) {
+      systemConfiguration.time_update = server.arg("time-update").toInt();
+  }
 
   writeConfigFile("/config.json");
   server.send(200, "text/html", SendHTML());
 }
 
-void readConfigFile() {
+bool readConfigFile() {
     
-  // Read JSON data from a file
   File file = SPIFFS.open("/config.json");
   if(file) {
     // Deserialize the JSON data
     StaticJsonDocument<512> doc;
     DeserializationError error = deserializeJson(doc, file);
     if (error) {
-      Serial.print("deserializeJson() failed: ");
-      Serial.println(error.c_str());
-      return;
+      // Serial.print("deserializeJson() failed: ");
+      // Serial.println(error.c_str());
+      return false;
     }
 
     JsonObject obj = doc.as<JsonObject>();
@@ -364,14 +401,14 @@ void readConfigFile() {
     systemConfiguration.thr_temp = obj["thr_temp"];
     systemConfiguration.thr_hum = obj["thr_hum"];
     systemConfiguration.thr_press = obj["thr_press"]; 
-    
-  file.close();  
-  } else {
-    Serial.println("Failed to open SPIFFS file to read");
+    //TODO: slice time and update time
+    file.close();
+    return true;
   }
+  return false;
 }
 
-void writeConfigFile(const char* filename) {
+bool writeConfigFile(const char* filename) {
   File outfile = SPIFFS.open(filename,"w");
   if(outfile) {
     StaticJsonDocument<512> doc;
@@ -389,15 +426,14 @@ void writeConfigFile(const char* filename) {
     doc["thr_temp"] = systemConfiguration.thr_temp;
     doc["thr_hum"] = systemConfiguration.thr_hum;
     doc["thr_press"] = systemConfiguration.thr_press;
-    if(serializeJson(doc, outfile)==0) {
-      Serial.println("Failed to write to SPIFFS file");
-    } else {
-      Serial.println("Success!");
+    //TODO: slice time and update time
+    if(serializeJson(doc, outfile)!=0) {
+      outfile.close();
+      return true;
     }
     outfile.close();
-    return;
   }
-  Serial.println("Failed to open SPIFFS file to write");
+  return false;
 }
 
 String SendHTML(){
