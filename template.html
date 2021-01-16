@@ -81,6 +81,55 @@ footer {
     margin-bottom: 1rem;
     margin-top: 1.5rem;
 }
+
+.alert{
+  padding: 20px;
+  color: white;
+  margin-bottom: 15px;
+  border: none;
+  border-radius: 4px;
+  background-color: #999999;
+}
+
+
+.alert.danger{
+  background-color: #f44336;
+}
+
+.alert.success {
+    background-color: #4CAF50;
+}
+
+.alert.info {
+    background-color: #2196F3;
+}
+
+.alert.warning {
+    background-color: #ff9800;
+}
+
+.closebtn {
+  margin-left: 15px;
+  color: white;
+  font-weight: bold;
+  float: right;
+  font-size: 22px;
+  line-height: 20px;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.closebtn:hover {
+  color: black;
+}
+
+.current-values {
+  background-color: #EEE;
+  padding: 15px;
+  margin-bottom: 20px; 
+  border-radius: 4px;
+}
+
     </style>
   </head>
   <body>
@@ -89,7 +138,27 @@ footer {
             <h1>Pixel Weather Station</h1>
           </div>
         
-      <form action="#" method="POST"> 
+          <div class="alert">
+            <span class="closebtn" onclick="this.parentElement.style.display='none';">&times;</span>
+            This is an alert box.
+          </div>
+
+      <div class="current-values">
+        <h2>Current Values</h2>
+        <label>Temperature (ºC)</label>
+        <input type="text" value="20.2" disabled />
+
+        <label>Humidity (%)</label>
+        <input type="text" value="55" disabled />
+
+        <label>Pressure (hPA)</label>
+        <input type="text" value="1013" disabled />
+
+        <label>Wind (rpm)</label>
+        <input type="text" value="20.6" disabled />
+      </div>
+
+      <form action="/" method="POST">
        <h2>Wifi</h2>
        
       <label for="wifi-ssid">SSID</label>
