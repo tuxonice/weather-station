@@ -12,11 +12,11 @@ body {
     font-size: 1rem;
     font-weight: 400;
     line-height: 1.5;
-    color: #212529;
+    color: #616264;
     text-align: left;
-    background-color: #f8f9fa;
-    
+    background-color: #E5E5E5;
 }
+
 input[type=text], input[type=number], input[type=password], select {
   width: 100%;
   padding: 12px 20px;
@@ -142,6 +142,18 @@ footer {
             <span class="closebtn" onclick="this.parentElement.style.display='none';">&times;</span>
             This is an alert box.
           </div>
+          <div class="alert danger">
+            <span class="closebtn" onclick="this.parentElement.style.display='none';">&times;</span>
+            This is an alert box.
+          </div>
+          <div class="alert info">
+            <span class="closebtn" onclick="this.parentElement.style.display='none';">&times;</span>
+            This is an alert box.
+          </div>
+          <div class="alert success">
+            <span class="closebtn" onclick="this.parentElement.style.display='none';">&times;</span>
+            This is an alert box.
+          </div>
 
       <div class="current-values">
         <h2>Current Values</h2>
@@ -159,7 +171,7 @@ footer {
       </div>
 
       <form action="/" method="POST">
-       <h2>Wifi</h2>
+      <h2>Wifi</h2>
        
       <label for="wifi-ssid">SSID</label>
       <input type="text" id="wifi-ssid" name="wifi-ssid" value="" required />
@@ -212,8 +224,8 @@ footer {
       <label for="thr-pressure">Pressure Threshold</label>
         <input type="number" id="thr-press" name="thr-press" value="" required />
         
-      <label for="slice-size">Slice size (miliseconds)</label>
-        <input type="number" id="slice-size" name="slice-size" value="" required />
+      <label for="slice-time">Slice size (miliseconds)</label>
+        <input type="number" id="slice-time" name="slice-time" value="" required />
         
       <label for="time-update">BME280 Time update (miliseconds)</label>
         <input type="number" id="time-update" name="time-update" value="" required />    
@@ -221,7 +233,7 @@ footer {
       <input type="submit" value="Save">
     </form>
     <footer>
-        <p>&copy; 2020 TLab</p>
+        <p>&copy; 2021 TLab</p>
       </footer>
     </div>
   </body>
