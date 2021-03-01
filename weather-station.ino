@@ -33,7 +33,6 @@ struct Configuration {
    String mqtt_port = "1883";
    String mqtt_user = "";
    String mqtt_password = "";
-   String mqtt_topic = "";
    float thr_temp = 1;
    float thr_hum = 5;
    float thr_press = 1;
@@ -139,10 +138,10 @@ void setup() {
 
 bool mqttReconnect() {
   if (!mqttClient.connected()) {
-    Serial.print("Attempting MQTT connection...");
     String clientId = "ESP32Client-";
     clientId += String(random(0xffff), HEX);
     if (!mqttClient.connect(clientId.c_str(),systemConfiguration.mqtt_user.c_str(),systemConfiguration.mqtt_password.c_str())) {
+      Serial.print("Fail MQTT connection...");
       Serial.println("failed, rc=" + mqttClient.state());
       return false;
     }
@@ -222,7 +221,7 @@ void loop(){
 
 void readLaserSensor() {
   if(laser == true) {
-    mqttPublish("laser", "ON");
+    mqttPublish("pixel/weather/laser", "ON");
     portENTER_CRITICAL_ISR(&synch_laser);
     laser = false;
     portEXIT_CRITICAL_ISR(&synch_laser);
@@ -232,13 +231,13 @@ void readLaserSensor() {
 void readWindSpeed() 
 {
     char average[10];
-    currentReadings.wind = (float)count/systemConfiguration.slice_time;
+    currentReadings.wind = (float)(count * 60000)/(float)systemConfiguration.slice_time;
     sprintf(average, "%.02f", currentReadings.wind);
     portENTER_CRITICAL_ISR(&synch_wind);
     count = 0;  
     portEXIT_CRITICAL_ISR(&synch_wind);
     lastSlice = millis();
-    mqttPublish("wind", average);
+    mqttPublish("pixel/weather/wind", average);
 }
 
 bool readWeatherSensor()
@@ -258,27 +257,33 @@ bool readWeatherSensor()
   currentTemperature = weatherSensor.readTempC();
   currentHumidity = weatherSensor.readFloatHumidity();
 
+  sprintf(humidity, "%.02f", currentHumidity);
+  sprintf(pressure, "%.02f", currentPressure);
+  sprintf(temperature, "%.02f", currentTemperature);
+  
+/*
   Serial.print("Humidity: ");
   Serial.println(currentHumidity);
   Serial.print("Pressure: ");
   Serial.println(currentPressure);
   Serial.print("Temp: ");
   Serial.println(currentTemperature);
-  Serial.print(" Alt: ");
-  Serial.print(weatherSensor.readFloatAltitudeMeters(), 1);
+  Serial.print("Alt: ");
+  Serial.println(weatherSensor.readFloatAltitudeMeters(), 1);
+*/
 
   if(abs(currentReadings.humidity - currentHumidity) >= systemConfiguration.thr_hum) {
-      mqttPublish("humidity", humidity);
+      mqttPublish("pixel/weather/humidity", humidity);
       currentReadings.humidity = currentHumidity;
   }
   
   if(abs(currentReadings.pressure - currentPressure) >= systemConfiguration.thr_press) {
-      mqttPublish("pressure", pressure);
+      mqttPublish("pixel/weather/pressure", pressure);
       currentReadings.pressure = currentPressure;
   }
-  
+
   if(abs(currentReadings.temperature - currentTemperature) >= systemConfiguration.thr_temp) {
-      mqttPublish("temperature", temperature);
+      mqttPublish("pixel/weather/temperature", temperature);
       currentReadings.temperature = currentTemperature;
   }
   
@@ -319,10 +324,6 @@ void handle_Update(){
   
   if (webServer.hasArg("mqtt-password")) {
       systemConfiguration.mqtt_password = webServer.arg("mqtt-password");
-  }
-  
-  if (webServer.hasArg("mqtt-topic")) {
-      systemConfiguration.mqtt_topic = webServer.arg("mqtt-topic");
   }
     
   if (webServer.hasArg("thr-temp")) {
@@ -375,7 +376,6 @@ bool readConfigFile() {
     systemConfiguration.mqtt_port = obj["mqtt_port"].as<String>();
     systemConfiguration.mqtt_user = obj["mqtt_user"].as<String>();
     systemConfiguration.mqtt_password = obj["mqtt_password"].as<String>();
-    systemConfiguration.mqtt_topic = obj["mqtt_topic"].as<String>();
     systemConfiguration.thr_temp = obj["thr_temp"];
     systemConfiguration.thr_hum = obj["thr_hum"];
     systemConfiguration.thr_press = obj["thr_press"]; 
@@ -397,7 +397,6 @@ bool writeConfigFile(const char* filename) {
     doc["mqtt_port"] = systemConfiguration.mqtt_port;
     doc["mqtt_user"] = systemConfiguration.mqtt_user;
     doc["mqtt_password"] = systemConfiguration.mqtt_password;
-    doc["mqtt_topic"] = systemConfiguration.mqtt_topic;
     doc["thr_temp"] = systemConfiguration.thr_temp;
     doc["thr_hum"] = systemConfiguration.thr_hum;
     doc["thr_press"] = systemConfiguration.thr_press;
@@ -417,14 +416,14 @@ String SendHTML(String alertMessage, String currentValues) {
     String ptr = String("<!doctype html>\n");
     ptr += String("<html lang=\"en\"><head><meta charset=\"utf-8\">\n");
     ptr += String("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1, shrink-to-fit=no\"><title>Weather Station | Pixel</title>\n");
-    ptr += String("<style>body{margin:0;font-family:Roboto,Arial,sans-serif;font-size:1rem;font-weight:400;line-height:1.5;color:#616264;text-align:left;background-color:#e5e5e5}input[type=number],input[type=password],input[type=text],select{width:100%;padding:12px 20px;margin:8px 0;display:inline-block;border:1px solid #ccc;border-radius:4px;box-sizing:border-box}input[type=submit]{width:100%;background-color:#4caf50;color:#fff;padding:14px 20px;margin:8px 0;border:none;border-radius:4px;cursor:pointer;font-size:1.2rem}.section-header{text-align:center;padding-top:1.5rem;padding-bottom:1.5rem}.container{max-width:960px;width:100%;padding-right:15px;padding-left:15px;margin-right:auto;margin-left:auto}h2{font-size:1.5rem;margin-top:0;margin-bottom:1rem;font-weight:500;line-height:1.2}hr{margin-top:1rem;margin-bottom:1rem;border:0;border-top:1px solid rgba(0,0,0,.1)}input[type=submit]:hover{background-color:#45a049}footer{color:#6c757d;text-align:center;padding-top:1rem;margin-bottom:1rem;margin-top:1.5rem}.alert{padding:20px;color:#fff;margin-bottom:15px;border:none;border-radius:4px;background-color:#999}.alert.danger{background-color:#f44336}.alert.success{background-color:#4caf50}.alert.info{background-color:#2196f3}.alert.warning{background-color:#ff9800}.closebtn{margin-left:15px;color:#fff;font-weight:700;float:right;font-size:22px;line-height:20px;cursor:pointer;transition:.3s}.closebtn:hover{color:#000}.current-values{background-color:#eee;padding:15px;margin-bottom:20px;border-radius:4px}</style>\n");
+    ptr += String("<style>body{margin:0;font-family:Roboto,Arial,sans-serif;font-size:1rem;font-weight:400;line-height:1.5;color:#616264;text-align:left;background-color:#e5e5e5}input[type=number],input[type=password],input[type=text],select{width:100%;padding:12px 20px;margin:8px 0;display:inline-block;border:1px solid #ccc;border-radius:4px;box-sizing:border-box}input[type=submit]{width:100%;background-color:#4caf50;color:#fff;padding:14px 20px;margin:8px 0;border:none;border-radius:4px;cursor:pointer;font-size:1.2rem}.section-header{text-align:center;padding-top:1.5rem;padding-bottom:1.5rem}.container{max-width:960px;width:100%;padding-right:15px;padding-left:15px;margin-right:auto;margin-left:auto}h2{font-size:1.5rem;margin-top:0;margin-bottom:1rem;font-weight:500;line-height:1.2}hr{margin-top:1rem;margin-bottom:1rem;border:0;border-top:1px solid rgba(0,0,0,.1)}input[type=submit]:hover{background-color:#45a049}footer{color:#6c757d;text-align:center;padding-top:1rem;margin-bottom:1rem;margin-top:1.5rem}.alert{padding:20px;color:#fff;margin-bottom:15px;border:none;border-radius:4px;background-color:#999}.alert.danger{background-color:#f44336}.alert.success{background-color:#4caf50}.closebtn{margin-left:15px;color:#fff;font-weight:700;float:right;font-size:22px;line-height:20px;cursor:pointer;transition:.3s}.closebtn:hover{color:#000}.current-values{background-color:#eee;padding:15px;margin-bottom:20px;border-radius:4px}</style>\n");
     ptr += String("</head><body><div class=\"container\"><div class=\"section-header\"><h1>Pixel Weather Station</h1></div>\n");
     ptr += alertMessage;
     ptr += currentValues;    
     ptr += String("<form action=\"/\" method=\"POST\">\n");
-    ptr += String("<h2>Wifi</h2> <label for=\"wifi-ssid\">SSID</label> <input type=\"text\" id=\"wifi-ssid\" name=\"wifi-ssid\" value=\"" + systemConfiguration.wifi_ssid + "\" required /> <label for=\"wifi-password\">Password</label> <input type=\"password\" id=\"wifi-password\" name=\"wifi-password\" value=\"" + systemConfiguration.wifi_password + "\" required /><hr/>\n");
-    ptr += String("<h2>MQTT</h2> <label for=\"mqtt-server\">Server</label> <input type=\"text\" id=\"mqtt-server\" name=\"mqtt-server\" value=\"" + systemConfiguration.mqtt_server + "\" required /><label for=\"mqtt-port\">Port</label> <input type=\"text\" id=\"mqtt-port\" name=\"mqtt-port\" value=\"" + systemConfiguration.mqtt_port + "\" required /><label for=\"mqtt-user\">Username</label> <input type=\"text\" id=\"mqtt-user\" name=\"mqtt-user\" value=\"" + systemConfiguration.mqtt_user + "\" required /><label for=\"mqtt-password\">Password</label> <input type=\"password\" id=\"mqtt-password\" name=\"mqtt-password\" value=\"" + systemConfiguration.mqtt_password + "\" required /><label for=\"mqtt-topic-wind\">Wind</label> <input type=\"text\" id=\"mqtt-topic\" name=\"mqtt-topic\" value=\"" + systemConfiguration.mqtt_topic + "\" required /><hr/>\n");
-    ptr += String("<h2>Configuration</h2> <label for=\"thr-temp\">Temperature Threshold</label> <input type=\"number\" id=\"thr-temp\" name=\"thr-temp\" value=\"" + String(systemConfiguration.thr_temp) + "\" required /><label for=\"thr-hum\">Humidity Threshold</label> <input type=\"number\" id=\"thr-hum\" name=\"thr-hum\" value=\"" + systemConfiguration.thr_hum + "\" required /><label for=\"thr-pressure\">Pressure Threshold</label> <input type=\"number\" id=\"thr-press\" name=\"thr-press\" value=\"" + systemConfiguration.thr_press + "\" required /><label for=\"slice-time\">Slice size (miliseconds)</label> <input type=\"number\" id=\"slice-time\" name=\"slice-time\" value=\"" + systemConfiguration.slice_time + "\" required /><label for=\"time-update\">BME280 Time update (miliseconds)</label> <input type=\"number\" id=\"time-update\" name=\"time-update\" value=\"" + systemConfiguration.time_update + "\" required />\n");
+    ptr += String("<h2>Wifi</h2> <label>SSID</label> <input type=\"text\" name=\"wifi-ssid\" value=\"" + systemConfiguration.wifi_ssid + "\" required /> <label>Password</label> <input type=\"password\" name=\"wifi-password\" value=\"" + systemConfiguration.wifi_password + "\" required /><hr/>\n");
+    ptr += String("<h2>MQTT</h2> <label>Server</label> <input type=\"text\" name=\"mqtt-server\" value=\"" + systemConfiguration.mqtt_server + "\" required /><label>Port</label> <input type=\"text\" name=\"mqtt-port\" value=\"" + systemConfiguration.mqtt_port + "\" required /><label>Username</label> <input type=\"text\" name=\"mqtt-user\" value=\"" + systemConfiguration.mqtt_user + "\" required /><label>Password</label> <input type=\"password\" name=\"mqtt-password\" value=\"" + systemConfiguration.mqtt_password + "\" required /><hr/>\n");
+    ptr += String("<h2>Configuration</h2> <label>Temperature Threshold</label> <input type=\"number\" name=\"thr-temp\" value=\"" + String(systemConfiguration.thr_temp) + "\" required /><label>Humidity Threshold</label> <input type=\"number\" name=\"thr-hum\" value=\"" + systemConfiguration.thr_hum + "\" required /><label>Pressure Threshold</label> <input type=\"number\" name=\"thr-press\" value=\"" + systemConfiguration.thr_press + "\" required /><label>Slice size (miliseconds)</label> <input type=\"number\" name=\"slice-time\" value=\"" + systemConfiguration.slice_time + "\" required /><label>BME280 Time update (miliseconds)</label> <input type=\"number\" name=\"time-update\" value=\"" + systemConfiguration.time_update + "\" required />\n");
     ptr += String("<input type=\"submit\" value=\"Save\"></form>\n");
     ptr += String("<footer><p>&copy; 2021 TLab</p> </footer></div></body></html>");
 
@@ -437,7 +436,13 @@ String getAlertMessageHtml(String type,String message) {
 }
 
 String getCurrentValuesHtml() {
-  return String("<div class=\"current-values\"><h2>Current Values</h2><label>Temperature (ºC)</label><input type=\"text\" value=\"" + String(currentReadings.temperature, 2) + "\" disabled /><label>Humidity (%)</label><input type=\"text\" value=\"" + String(currentReadings.humidity, 2) + "\" disabled /><label>Pressure (hPA)</label><input type=\"text\" value=\"" + String(currentReadings.pressure, 2) + "\" disabled /><label>Wind (rpm)</label><input type=\"text\" value=\"" + String(currentReadings.wind,2) + "\" disabled /></div>\n");
+
+  String currentPressure = String(weatherSensor.readFloatPressure(),2);
+  String currentTemperature = String(weatherSensor.readTempC(), 2);
+  String currentHumidity = String(weatherSensor.readFloatHumidity(),2);
+  String currentWindSpeed = String(currentReadings.wind, 2);  
+  
+  return String("<div class=\"current-values\"><h2>Current Values</h2><label>Temperature (ºC)</label><input type=\"text\" value=\"" + currentTemperature + "\" disabled /><label>Humidity (%)</label><input type=\"text\" value=\"" + currentHumidity + "\" disabled /><label>Pressure (hPA)</label><input type=\"text\" value=\"" + currentPressure + "\" disabled /><label>Wind (rpm)</label><input type=\"text\" value=\"" + currentWindSpeed + "\" disabled /></div>\n");
 }
 
 

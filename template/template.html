@@ -100,14 +100,6 @@ footer {
     background-color: #4CAF50;
 }
 
-.alert.info {
-    background-color: #2196F3;
-}
-
-.alert.warning {
-    background-color: #ff9800;
-}
-
 .closebtn {
   margin-left: 15px;
   color: white;
@@ -138,15 +130,7 @@ footer {
             <h1>Pixel Weather Station</h1>
           </div>
         
-          <div class="alert">
-            <span class="closebtn" onclick="this.parentElement.style.display='none';">&times;</span>
-            This is an alert box.
-          </div>
           <div class="alert danger">
-            <span class="closebtn" onclick="this.parentElement.style.display='none';">&times;</span>
-            This is an alert box.
-          </div>
-          <div class="alert info">
             <span class="closebtn" onclick="this.parentElement.style.display='none';">&times;</span>
             This is an alert box.
           </div>
@@ -173,62 +157,44 @@ footer {
       <form action="/" method="POST">
       <h2>Wifi</h2>
        
-      <label for="wifi-ssid">SSID</label>
-      <input type="text" id="wifi-ssid" name="wifi-ssid" value="" required />
+      <label>SSID</label>
+      <input type="text"name="wifi-ssid" value="" required />
 
-      <label for="wifi-password">Password</label>
-      <input type="password" id="wifi-password" name="wifi-password" value="" required />
+      <label>Password</label>
+      <input type="password" name="wifi-password" value="" required />
 
       <hr/>
       <h2>MQTT</h2>
       
-      <label for="mqtt-server">Server</label>
-      <input type="text" id="mqtt-server" name="mqtt-server" value="" required />
+      <label>Server</label>
+      <input type="text" name="mqtt-server" value="" required />
 
-      <label for="mqtt-port">Port</label>
-      <input type="text" id="mqtt-port" name="mqtt-port" value="" required />
+      <label>Port</label>
+      <input type="text" name="mqtt-port" value="" required />
 
-      <label for="mqtt-user">Username</label>
-      <input type="text" id="mqtt-user" name="mqtt-user" value="" required />
+      <label>Username</label>
+      <input type="text" name="mqtt-user" value="" required />
 
-      <label for="mqtt-password">Password</label>
-      <input type="password" id="mqtt-password" name="mqtt-password" value="" required />
+      <label>Password</label>
+      <input type="password" name="mqtt-password" value="" required />
 
-      <hr/>
-      <h2>MQTT Topics</h2>
-      
-      <label for="mqtt-topic-wind">Wind</label>
-      <input type="text" id="mqtt-topic-wind" name="mqtt-topic-wind" value="" required />
-      
-      <label for="mqtt-topic-laser">laser</label>
-      <input type="text" id="mqtt-topic-laser" name="mqtt-topic-laser" value="" required />
-      
-       <label for="mqtt-topic-temp">temperature</label>
-      <input type="text" id="mqtt-topic-temp" name="mqtt-topic-temp" value="" required />
-      
-       <label for="mqtt-topic-hum">Humidity</label>
-      <input type="text" id="mqtt-topic-hum" name="mqtt-topic-hum" value="" required />
-      
-       <label for="mqtt-topic-press">Pressure</label>
-      <input type="text" id="mqtt-topic-press" name="mqtt-topic-press" value="" required />
-      
       <hr/>
       <h2>Configuration</h2>
       
-      <label for="thr-temp">Temperature Threshold</label>
-        <input type="number" id="thr-temp" name="thr-temp" value="" required />
+      <label>Temperature Threshold</label>
+        <input type="number" name="thr-temp" value="" required />
         
-      <label for="thr-hum">Humidity Threshold</label>
-        <input type="number" id="thr-hum" name="thr-hum" value="" required />
+      <label>Humidity Threshold</label>
+        <input type="number" name="thr-hum" value="" required />
         
-      <label for="thr-pressure">Pressure Threshold</label>
-        <input type="number" id="thr-press" name="thr-press" value="" required />
+      <label>Pressure Threshold</label>
+        <input type="number" name="thr-press" value="" required />
         
-      <label for="slice-time">Slice size (miliseconds)</label>
-        <input type="number" id="slice-time" name="slice-time" value="" required />
+      <label>Slice size (miliseconds)</label>
+        <input type="number" name="slice-time" value="" required />
         
-      <label for="time-update">BME280 Time update (miliseconds)</label>
-        <input type="number" id="time-update" name="time-update" value="" required />    
+      <label>BME280 Time update (miliseconds)</label>
+        <input type="number" name="time-update" value="" required />    
         
       <input type="submit" value="Save">
     </form>
