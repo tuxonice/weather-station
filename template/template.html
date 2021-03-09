@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <title>Weather Station | Pixel</title>
+    
+    <style>
+body {
+    margin: 0;
+    font-family: Roboto,Arial,sans-serif;
+    font-size: 1rem;
+    font-weight: 400;
+    line-height: 1.5;
+    color: #616264;
+    text-align: left;
+    background-color: #E5E5E5;
+}
+
+input[type=text], input[type=number], input[type=password], select {
+  width: 100%;
+  padding: 12px 20px;
+  margin: 8px 0;
+  display: inline-block;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  box-sizing: border-box;
+}
+
+input[type=submit] {
+  width: 100%;
+  background-color: #4CAF50;
+  color: white;
+  padding: 14px 20px;
+  margin: 8px 0;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 1.2rem;
+}
+
+.section-header {
+    text-align: center;
+    padding-top: 1.5rem;
+    padding-bottom: 1.5rem;
+}
+
+.container {
+    max-width: 960px;
+    width: 100%;
+    padding-right: 15px;
+    padding-left: 15px;
+    margin-right: auto;
+    margin-left: auto;
+}
+
+
+h2 {
+    font-size: 1.5rem;
+    margin-top: 0;
+    margin-bottom: 1rem;
+    font-weight: 500;
+    line-height: 1.2;
+}
+
+hr {
+    margin-top: 1rem;
+    margin-bottom: 1rem;
+    border: 0;
+    border-top: 1px solid rgba(0,0,0,.1);
+}
+
+input[type=submit]:hover {
+  background-color: #45a049;
+}
+
+footer {
+    color: #6c757d;
+    text-align: center;
+    padding-top: 1rem;
+    margin-bottom: 1rem;
+    margin-top: 1.5rem;
+}
+
+.alert{
+  padding: 20px;
+  color: white;
+  margin-bottom: 15px;
+  border: none;
+  border-radius: 4px;
+  background-color: #999999;
+}
+
+
+.alert.danger{
+  background-color: #f44336;
+}
+
+.alert.success {
+    background-color: #4CAF50;
+}
+
+.closebtn {
+  margin-left: 15px;
+  color: white;
+  font-weight: bold;
+  float: right;
+  font-size: 22px;
+  line-height: 20px;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.closebtn:hover {
+  color: black;
+}
+
+.current-values {
+  background-color: #EEE;
+  padding: 15px;
+  margin-bottom: 20px; 
+  border-radius: 4px;
+}
+
+    </style>
+  </head>
+  <body>
+      <div class="container">
+          <div class="section-header">
+            <h1>Pixel Weather Station</h1>
+          </div>
+        
+          <div class="alert danger">
+            <span class="closebtn" onclick="this.parentElement.style.display='none';">&times;</span>
+            This is an alert box.
+          </div>
+          <div class="alert success">
+            <span class="closebtn" onclick="this.parentElement.style.display='none';">&times;</span>
+            This is an alert box.
+          </div>
+
+      <div class="current-values">
+        <h2>Current Values</h2>
+        <label>Temperature (ºC)</label>
+        <input type="text" value="20.2" disabled />
+
+        <label>Humidity (%)</label>
+        <input type="text" value="55" disabled />
+
+        <label>Pressure (hPA)</label>
+        <input type="text" value="1013" disabled />
+
+        <label>Wind (rpm)</label>
+        <input type="text" value="20.6" disabled />
+      </div>
+
+      <form action="/" method="POST">
+      <h2>Wifi</h2>
+       
+      <label>SSID</label>
+      <input type="text"name="wifi-ssid" value="" required />
+
+      <label>Password</label>
+      <input type="password" name="wifi-password" value="" required />
+
+      <hr/>
+      <h2>MQTT</h2>
+      
+      <label>Server</label>
+      <input type="text" name="mqtt-server" value="" required />
+
+      <label>Port</label>
+      <input type="text" name="mqtt-port" value="" required />
+
+      <label>Username</label>
+      <input type="text" name="mqtt-user" value="" required />
+
+      <label>Password</label>
+      <input type="password" name="mqtt-password" value="" required />
+
+      <hr/>
+      <h2>Configuration</h2>
+      
+      <label>Temperature Threshold</label>
+        <input type="number" name="thr-temp" value="" required />
+        
+      <label>Humidity Threshold</label>
+        <input type="number" name="thr-hum" value="" required />
+        
+      <label>Pressure Threshold</label>
+        <input type="number" name="thr-press" value="" required />
+        
+      <label>Slice size (miliseconds)</label>
+        <input type="number" name="slice-time" value="" required />
+        
+      <label>BME280 Time update (miliseconds)</label>
+        <input type="number" name="time-update" value="" required />    
+        
+      <input type="submit" value="Save">
+    </form>
+    <footer>
+        <p>&copy; 2021 TLab</p>
+      </footer>
+    </div>
+  </body>
+</html>
