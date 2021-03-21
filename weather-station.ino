@@ -11,7 +11,7 @@ String SendHTML(String alertMessage, String currentValues);
 
 #define INPUT_PIN_WIND 15
 #define INPUT_PIN_LASER 18
-#define STATUS_LED  2
+#define STATUS_LED  5
 #define WIFI_CONNECTING_BLINK_COUNT 2
 #define MQTT_ERROR_BLINK_COUNT 3
 #define BME280_ERROR_BLINK_COUNT 6
@@ -60,7 +60,8 @@ PubSubClient mqttClient(wifiClient);
 WebServer webServer(80);
 
 // reed sensor interrupt routine (500 ms debouce)
-void IRAM_ATTR wind_isr() {
+void IRAM_ATTR wind_isr() 
+{
   portENTER_CRITICAL(&synch_wind);
   if (millis() > lastEntryWind + 500) {
     count++;
@@ -70,7 +71,8 @@ void IRAM_ATTR wind_isr() {
 }
 
 // laser sensor interrupt routine (500 ms debouce)
-void IRAM_ATTR laser_isr() {
+void IRAM_ATTR laser_isr() 
+{
   portENTER_CRITICAL(&synch_laser);
   if (millis() > lastEntryLaser + 500) {
     laser = true;
@@ -79,7 +81,8 @@ void IRAM_ATTR laser_isr() {
   portEXIT_CRITICAL(&synch_laser);
 }
 
-void setup() {
+void setup() 
+{
   Serial.begin(115200);
   apMode = false;
   pinMode(STATUS_LED, OUTPUT);
@@ -136,7 +139,8 @@ void setup() {
   lastEntryBME280 = millis();
 }
 
-bool mqttReconnect() {
+bool mqttReconnect() 
+{
   if (!mqttClient.connected()) {
     String clientId = "ESP32Client-";
     clientId += String(random(0xffff), HEX);
@@ -198,7 +202,8 @@ void apConnect()
     Serial.println(IP);
 }
 
-void loop(){
+void loop()
+{
 
   webServer.handleClient();
   if(apMode == true) {
@@ -219,7 +224,8 @@ void loop(){
   iddleToBlink(1);
 }
 
-void readLaserSensor() {
+void readLaserSensor() 
+{
   if(laser == true) {
     mqttPublish("pixel/weather/laser", "ON");
     portENTER_CRITICAL_ISR(&synch_laser);
@@ -253,9 +259,9 @@ bool readWeatherSensor()
       return false;
   }
 
-  currentPressure = weatherSensor.readFloatPressure();
   currentTemperature = weatherSensor.readTempC();
   currentHumidity = weatherSensor.readFloatHumidity();
+  currentPressure = weatherSensor.readFloatPressure() / 100;
 
   sprintf(humidity, "%.02f", currentHumidity);
   sprintf(pressure, "%.02f", currentPressure);
@@ -291,16 +297,19 @@ bool readWeatherSensor()
   return true;
 }
 
-void handle_OnConnect() {
+void handle_OnConnect() 
+{
   String currentValues = getCurrentValuesHtml();
   webServer.send(200, "text/html", SendHTML("", currentValues)); 
 }
 
-void handle_NotFound(){
+void handle_NotFound()
+{
   webServer.send(404, "text/plain", "Not found");
 }
 
-void handle_Update(){
+void handle_Update()
+{
     
   if (webServer.hasArg("wifi-ssid")) {
       systemConfiguration.wifi_ssid = webServer.arg("wifi-ssid");
@@ -357,7 +366,8 @@ void handle_Update(){
   webServer.send(200, "text/html", SendHTML(alertMessage, currentValues));
 }
 
-bool readConfigFile() {
+bool readConfigFile() 
+{
     
   File file = SPIFFS.open("/config.json");
   if(file) {
@@ -387,7 +397,8 @@ bool readConfigFile() {
   return false;
 }
 
-bool writeConfigFile(const char* filename) {
+bool writeConfigFile(const char* filename) 
+{
   File outfile = SPIFFS.open(filename,"w");
   if(outfile) {
     StaticJsonDocument<512> doc;
@@ -411,7 +422,8 @@ bool writeConfigFile(const char* filename) {
   return false;
 }
 
-String SendHTML(String alertMessage, String currentValues) {
+String SendHTML(String alertMessage, String currentValues) 
+{
     
     String ptr = String("<!doctype html>\n");
     ptr += String("<html lang=\"en\"><head><meta charset=\"utf-8\">\n");
@@ -423,7 +435,7 @@ String SendHTML(String alertMessage, String currentValues) {
     ptr += String("<form action=\"/\" method=\"POST\">\n");
     ptr += String("<h2>Wifi</h2> <label>SSID</label> <input type=\"text\" name=\"wifi-ssid\" value=\"" + systemConfiguration.wifi_ssid + "\" required /> <label>Password</label> <input type=\"password\" name=\"wifi-password\" value=\"" + systemConfiguration.wifi_password + "\" required /><hr/>\n");
     ptr += String("<h2>MQTT</h2> <label>Server</label> <input type=\"text\" name=\"mqtt-server\" value=\"" + systemConfiguration.mqtt_server + "\" required /><label>Port</label> <input type=\"text\" name=\"mqtt-port\" value=\"" + systemConfiguration.mqtt_port + "\" required /><label>Username</label> <input type=\"text\" name=\"mqtt-user\" value=\"" + systemConfiguration.mqtt_user + "\" required /><label>Password</label> <input type=\"password\" name=\"mqtt-password\" value=\"" + systemConfiguration.mqtt_password + "\" required /><hr/>\n");
-    ptr += String("<h2>Configuration</h2> <label>Temperature Threshold</label> <input type=\"number\" name=\"thr-temp\" value=\"" + String(systemConfiguration.thr_temp) + "\" required /><label>Humidity Threshold</label> <input type=\"number\" name=\"thr-hum\" value=\"" + systemConfiguration.thr_hum + "\" required /><label>Pressure Threshold</label> <input type=\"number\" name=\"thr-press\" value=\"" + systemConfiguration.thr_press + "\" required /><label>Slice size (seconds)</label> <input type=\"number\" name=\"slice-time\" value=\"" + systemConfiguration.slice_time + "\" required /><label>BME280 Time update (seconds)</label> <input type=\"number\" name=\"time-update\" value=\"" + systemConfiguration.time_update + "\" required />\n");
+    ptr += String("<h2>Configuration</h2> <label>Temperature Threshold</label> <input type=\"number\" step=\"0.1\" name=\"thr-temp\" value=\"" + String(systemConfiguration.thr_temp) + "\" required /><label>Humidity Threshold</label> <input type=\"number\" step=\"0.1\" name=\"thr-hum\" value=\"" + systemConfiguration.thr_hum + "\" required /><label>Pressure Threshold</label> <input type=\"number\" step=\"0.1\" name=\"thr-press\" value=\"" + systemConfiguration.thr_press + "\" required /><label>Slice size (seconds)</label> <input type=\"number\" name=\"slice-time\" value=\"" + systemConfiguration.slice_time + "\" required /><label>BME280 Time update (seconds)</label> <input type=\"number\" name=\"time-update\" value=\"" + systemConfiguration.time_update + "\" required />\n");
     ptr += String("<input type=\"submit\" value=\"Save\"></form>\n");
     ptr += String("<footer><p>&copy; 2021 TLab</p> </footer></div></body></html>");
 
@@ -431,15 +443,16 @@ String SendHTML(String alertMessage, String currentValues) {
 }
 
 
-String getAlertMessageHtml(String type,String message) {
+String getAlertMessageHtml(String type,String message) 
+{
   return String("<div class=\"alert " + type + "\"><span class=\"closebtn\" onclick=\"this.parentElement.style.display='none';\">&times;</span>" + message + "</div>");
 }
 
-String getCurrentValuesHtml() {
-
-  String currentPressure = String(weatherSensor.readFloatPressure(),2);
+String getCurrentValuesHtml() 
+{
   String currentTemperature = String(weatherSensor.readTempC(), 2);
   String currentHumidity = String(weatherSensor.readFloatHumidity(),2);
+  String currentPressure = String(weatherSensor.readFloatPressure() / 100,2);
   String currentWindSpeed = String(currentReadings.wind, 2);  
   
   return String("<div class=\"current-values\"><h2>Current Values</h2><label>Temperature (ºC)</label><input type=\"text\" value=\"" + currentTemperature + "\" disabled /><label>Humidity (%)</label><input type=\"text\" value=\"" + currentHumidity + "\" disabled /><label>Pressure (hPA)</label><input type=\"text\" value=\"" + currentPressure + "\" disabled /><label>Wind (rpm)</label><input type=\"text\" value=\"" + currentWindSpeed + "\" disabled /></div>\n");
