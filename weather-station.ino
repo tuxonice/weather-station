@@ -36,8 +36,8 @@ struct Configuration {
    float thr_temp = 1;
    float thr_hum = 5;
    float thr_press = 1;
-   int slice_time = 30000;
-   int time_update = 60000;
+   int slice_time = 30;
+   int time_update = 60;
 };
 
 struct Readings {
@@ -206,13 +206,13 @@ void loop(){
       return;
   }
   
-  if(millis() >= lastSlice + systemConfiguration.slice_time) {
+  if(millis() >= lastSlice + (systemConfiguration.slice_time * 1000)) {
     readWindSpeed();
   }
 
   readLaserSensor();
   
-  if(weatherSensorIsActive == true && millis() >= lastEntryBME280 + systemConfiguration.time_update) {
+  if(weatherSensorIsActive == true && millis() >= lastEntryBME280 + (systemConfiguration.time_update * 1000)) {
     readWeatherSensor();
   }
   
@@ -231,7 +231,7 @@ void readLaserSensor() {
 void readWindSpeed() 
 {
     char average[10];
-    currentReadings.wind = (float)(count * 60000)/(float)systemConfiguration.slice_time;
+    currentReadings.wind = (float)(count * 60000)/(float)(systemConfiguration.slice_time * 1000);
     sprintf(average, "%.02f", currentReadings.wind);
     portENTER_CRITICAL_ISR(&synch_wind);
     count = 0;  
@@ -423,7 +423,7 @@ String SendHTML(String alertMessage, String currentValues) {
     ptr += String("<form action=\"/\" method=\"POST\">\n");
     ptr += String("<h2>Wifi</h2> <label>SSID</label> <input type=\"text\" name=\"wifi-ssid\" value=\"" + systemConfiguration.wifi_ssid + "\" required /> <label>Password</label> <input type=\"password\" name=\"wifi-password\" value=\"" + systemConfiguration.wifi_password + "\" required /><hr/>\n");
     ptr += String("<h2>MQTT</h2> <label>Server</label> <input type=\"text\" name=\"mqtt-server\" value=\"" + systemConfiguration.mqtt_server + "\" required /><label>Port</label> <input type=\"text\" name=\"mqtt-port\" value=\"" + systemConfiguration.mqtt_port + "\" required /><label>Username</label> <input type=\"text\" name=\"mqtt-user\" value=\"" + systemConfiguration.mqtt_user + "\" required /><label>Password</label> <input type=\"password\" name=\"mqtt-password\" value=\"" + systemConfiguration.mqtt_password + "\" required /><hr/>\n");
-    ptr += String("<h2>Configuration</h2> <label>Temperature Threshold</label> <input type=\"number\" name=\"thr-temp\" value=\"" + String(systemConfiguration.thr_temp) + "\" required /><label>Humidity Threshold</label> <input type=\"number\" name=\"thr-hum\" value=\"" + systemConfiguration.thr_hum + "\" required /><label>Pressure Threshold</label> <input type=\"number\" name=\"thr-press\" value=\"" + systemConfiguration.thr_press + "\" required /><label>Slice size (miliseconds)</label> <input type=\"number\" name=\"slice-time\" value=\"" + systemConfiguration.slice_time + "\" required /><label>BME280 Time update (miliseconds)</label> <input type=\"number\" name=\"time-update\" value=\"" + systemConfiguration.time_update + "\" required />\n");
+    ptr += String("<h2>Configuration</h2> <label>Temperature Threshold</label> <input type=\"number\" name=\"thr-temp\" value=\"" + String(systemConfiguration.thr_temp) + "\" required /><label>Humidity Threshold</label> <input type=\"number\" name=\"thr-hum\" value=\"" + systemConfiguration.thr_hum + "\" required /><label>Pressure Threshold</label> <input type=\"number\" name=\"thr-press\" value=\"" + systemConfiguration.thr_press + "\" required /><label>Slice size (seconds)</label> <input type=\"number\" name=\"slice-time\" value=\"" + systemConfiguration.slice_time + "\" required /><label>BME280 Time update (seconds)</label> <input type=\"number\" name=\"time-update\" value=\"" + systemConfiguration.time_update + "\" required />\n");
     ptr += String("<input type=\"submit\" value=\"Save\"></form>\n");
     ptr += String("<footer><p>&copy; 2021 TLab</p> </footer></div></body></html>");
 
