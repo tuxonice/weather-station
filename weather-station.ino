@@ -12,6 +12,7 @@ String SendHTML(String alertMessage, String currentValues);
 #define INPUT_PIN_WIND 15
 #define INPUT_PIN_LASER 18
 #define STATUS_LED  5
+#define ERROR_LED 13
 #define WIFI_CONNECTING_BLINK_COUNT 2
 #define MQTT_ERROR_BLINK_COUNT 3
 #define BME280_ERROR_BLINK_COUNT 6
@@ -86,6 +87,8 @@ void setup()
   Serial.begin(115200);
   apMode = false;
   pinMode(STATUS_LED, OUTPUT);
+  pinMode(ERROR_LED, OUTPUT);
+  digitalWrite(ERROR_LED, HIGH);
 
   // 1. I2C Initialization
   Wire.begin();
@@ -137,6 +140,7 @@ void setup()
   mqttReconnect();
   
   lastEntryBME280 = millis();
+  digitalWrite(ERROR_LED, LOW);
 }
 
 bool mqttReconnect() 
@@ -155,9 +159,11 @@ bool mqttReconnect()
 
 bool mqttPublish(char * topic, char * serialData){
   if (!mqttReconnect()) {
+      digitalWrite(ERROR_LED, HIGH);
       return false;
   }
   mqttClient.publish(topic, serialData);
+  digitalWrite(ERROR_LED, LOW);
   return true;
 }
 
