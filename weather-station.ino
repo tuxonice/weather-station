@@ -321,7 +321,7 @@ void handle_Update()
       systemConfiguration.wifi_ssid = webServer.arg("wifi-ssid");
   }
   
-  if (webServer.hasArg("wifi-password")) {
+  if (webServer.hasArg("wifi-password") && webServer.arg("wifi-password") != "**********") {
       systemConfiguration.wifi_password = webServer.arg("wifi-password");
   }
   
@@ -337,7 +337,7 @@ void handle_Update()
       systemConfiguration.mqtt_user = webServer.arg("mqtt-user");
   }
   
-  if (webServer.hasArg("mqtt-password")) {
+  if (webServer.hasArg("mqtt-password") && webServer.arg("mqtt-password") != "**********") {
       systemConfiguration.mqtt_password = webServer.arg("mqtt-password");
   }
     
@@ -439,8 +439,8 @@ String SendHTML(String alertMessage, String currentValues)
     ptr += alertMessage;
     ptr += currentValues;    
     ptr += String("<form action=\"/\" method=\"POST\">\n");
-    ptr += String("<h2>Wifi</h2> <label>SSID</label> <input type=\"text\" name=\"wifi-ssid\" value=\"" + systemConfiguration.wifi_ssid + "\" required /> <label>Password</label> <input type=\"password\" name=\"wifi-password\" value=\"" + systemConfiguration.wifi_password + "\" required /><hr/>\n");
-    ptr += String("<h2>MQTT</h2> <label>Server</label> <input type=\"text\" name=\"mqtt-server\" value=\"" + systemConfiguration.mqtt_server + "\" required /><label>Port</label> <input type=\"text\" name=\"mqtt-port\" value=\"" + systemConfiguration.mqtt_port + "\" required /><label>Username</label> <input type=\"text\" name=\"mqtt-user\" value=\"" + systemConfiguration.mqtt_user + "\" required /><label>Password</label> <input type=\"password\" name=\"mqtt-password\" value=\"" + systemConfiguration.mqtt_password + "\" required /><hr/>\n");
+    ptr += String("<h2>Wifi</h2> <label>SSID</label> <input type=\"text\" name=\"wifi-ssid\" value=\"" + systemConfiguration.wifi_ssid + "\" required /> <label>Password</label> <input type=\"password\" name=\"wifi-password\" value=\"**********\" required /><hr/>\n");
+    ptr += String("<h2>MQTT</h2> <label>Server</label> <input type=\"text\" name=\"mqtt-server\" value=\"" + systemConfiguration.mqtt_server + "\" required /><label>Port</label> <input type=\"text\" name=\"mqtt-port\" value=\"" + systemConfiguration.mqtt_port + "\" required /><label>Username</label> <input type=\"text\" name=\"mqtt-user\" value=\"" + systemConfiguration.mqtt_user + "\" required /><label>Password</label> <input type=\"password\" name=\"mqtt-password\" value=\"**********\" required /><hr/>\n");
     ptr += String("<h2>Configuration</h2> <label>Temperature Threshold</label> <input type=\"number\" step=\"0.1\" name=\"thr-temp\" value=\"" + String(systemConfiguration.thr_temp) + "\" required /><label>Humidity Threshold</label> <input type=\"number\" step=\"0.1\" name=\"thr-hum\" value=\"" + systemConfiguration.thr_hum + "\" required /><label>Pressure Threshold</label> <input type=\"number\" step=\"0.1\" name=\"thr-press\" value=\"" + systemConfiguration.thr_press + "\" required /><label>Slice size (seconds)</label> <input type=\"number\" name=\"slice-time\" value=\"" + systemConfiguration.slice_time + "\" required /><label>BME280 Time update (seconds)</label> <input type=\"number\" name=\"time-update\" value=\"" + systemConfiguration.time_update + "\" required />\n");
     ptr += String("<input type=\"submit\" value=\"Save\"></form>\n");
     ptr += String("<footer><p>&copy; 2021 TLab</p> </footer></div></body></html>");
