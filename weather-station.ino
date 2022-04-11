@@ -158,6 +158,13 @@ bool mqttReconnect()
 }
 
 bool mqttPublish(char * topic, char * serialData){
+
+  if (WiFi.status() != WL_CONNECTED) {
+    Serial.println("Reconnecting to WiFi...");
+    WiFi.disconnect();
+    WiFi.reconnect();
+  }
+
   if (!mqttReconnect()) {
       digitalWrite(ERROR_LED, HIGH);
       return false;
