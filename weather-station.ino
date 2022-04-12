@@ -158,6 +158,11 @@ bool mqttReconnect()
 }
 
 bool mqttPublish(char * topic, char * serialData){
+
+  if (WiFi.status() != WL_CONNECTED) {
+    wifiReconnect(10000);
+  }
+
   if (!mqttReconnect()) {
       digitalWrite(ERROR_LED, HIGH);
       return false;
@@ -188,6 +193,23 @@ bool wifiConnect(int timeout)
     Serial.print("Got IP: ");
     Serial.println(WiFi.localIP());
     randomSeed(micros());
+    return true;
+}
+
+bool wifiReconnect(int timeout)
+{
+    unsigned long startTime = millis();
+    WiFi.disconnect();
+    Serial.print("Reconnecting...");
+    WiFi.reconnect();
+    while(WiFi.status() != WL_CONNECTED) {
+      Serial.print(".");
+      delay(1000);
+      if((millis() - startTime) > timeout) {
+        return false;
+      }
+    }
+    
     return true;
 }
 
